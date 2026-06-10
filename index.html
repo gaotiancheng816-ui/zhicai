@@ -5,7 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>自厨 · 荷兰私家中餐</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 
@@ -182,6 +184,10 @@ textarea{resize:none}
 .dish-row input,.dish-row select{flex:1}
 .dish-row select{flex:2}
 
+.map-pick{height:220px;border-radius:var(--r-lg);overflow:hidden;border:1.5px solid var(--border);margin-bottom:6px}
+.map-tip{font-size:12px;color:var(--text3);margin-bottom:14px;display:flex;align-items:center;gap:5px}
+.map-tip i{color:var(--orange);font-size:13px}
+.map-located{font-size:12px;color:#065F46;background:#D1FAE5;border-radius:var(--r-full);padding:3px 10px;display:inline-flex;align-items:center;gap:4px}
 .loading{padding:48px 24px;text-align:center;color:var(--text3);font-size:14px}
 .loading i{font-size:32px;display:block;margin-bottom:10px;opacity:.4}
 
@@ -334,6 +340,12 @@ textarea{resize:none}
       <input id="r-city-other" type="text" placeholder="请输入城市名" style="display:none;margin-top:8px">
     </div>
     <div class="field"><label class="lbl">大致区域（街区/邮编）<span class="req">*</span></label><input id="r-area" type="text" placeholder="如：De Pijp、1073、南区"></div>
+    <div class="field">
+      <label class="lbl">在地图上标记你的位置 <span class="req">*</span></label>
+      <div class="map-tip"><i class="ti ti-hand-finger"></i>点击地图选择你的大概位置</div>
+      <div class="map-pick" id="reg-map"></div>
+      <div style="margin-top:6px;min-height:20px" id="reg-map-status"></div>
+    </div>
     <div class="field"><label class="lbl">联系方式（微信 / 其他）<span class="req">*</span></label><input id="r-contact" type="text" placeholder="微信号或其他联系方式"></div>
     <div class="field"><label class="lbl">WhatsApp 号码</label><input id="r-whatsapp" type="text" placeholder="+31 6 1234 5678（用于接收订单通知）"></div>
     <div class="field" style="margin-bottom:22px"><label class="lbl">自我介绍 <span class="req">*</span></label><textarea id="r-bio" rows="4" placeholder="来自哪里、擅长什么菜…"></textarea></div>
@@ -407,10 +419,34 @@ function ini(name){return name.replace(/私厨|家的味道|饺子馆|煲仔饭/
 let state={chefs:[],currentChef:null,cart:{},orders:[],myChef:null,activeTab:'chefs'};
 let dishCount=0;
 
+let regMap=null, regMarker=null, regLatLng=null;
+
+function initRegMap(){
+  if(regMap){regMap.invalidateSize();return;}
+  regMap=L.map('reg-map',{zoomControl:true}).setView([52.37,4.9],12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    attribution:'© OpenStreetMap',maxZoom:19
+  }).addTo(regMap);
+  regMap.on('click',e=>{
+    regLatLng=e.latlng;
+    if(regMarker)regMarker.setLatLng(e.latlng);
+    else regMarker=L.marker(e.latlng).addTo(regMap);
+    document.getElementById('reg-map-status').innerHTML=
+      `<span class="map-located"><i class="ti ti-check"></i>已选：${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)}</span>`;
+  });
+}
+
+function haversine(lat1,lng1,lat2,lng2){
+  const R=6371,dLat=(lat2-lat1)*Math.PI/180,dLng=(lng2-lng1)*Math.PI/180;
+  const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
 function showPage(n){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   const el=document.getElementById('p-'+n);
   if(el){el.classList.add('active');el.scrollTo&&el.scrollTo(0,0)}
+  if(n==='reg-1')setTimeout(initRegMap,100);
 }
 
 function switchTab(tab){
@@ -435,7 +471,15 @@ async function loadChefs(){
     return;
   }
   const {data:allMenus}=await db.from('menu_items').select('*').in('chef_id',chefs.map(c=>c.id));
-  state.chefs=chefs.map((c,i)=>({...c,_idx:i,menu:(allMenus||[]).filter(m=>m.chef_id===c.id)}));
+  let userLat=null,userLng=null;
+  try{
+    const pos=await new Promise((res,rej)=>navigator.geolocation.getCurrentPosition(res,rej,{timeout:5000}));
+    userLat=pos.coords.latitude;userLng=pos.coords.longitude;
+  }catch(e){}
+  state.chefs=chefs.map((c,i)=>{
+    const dist=(userLat&&c.lat&&c.lng)?+(haversine(userLat,userLng,c.lat,c.lng).toFixed(1)):null;
+    return{...c,_idx:i,dist,menu:(allMenus||[]).filter(m=>m.chef_id===c.id)};
+  });
   renderChefList(state.chefs);
 }
 
@@ -643,7 +687,9 @@ async function submitReg(){
   const avatar_url=await uploadImg(avatarFile,'avatars/'+Date.now());
   btn.textContent='提交中…';
   const whatsapp=document.getElementById('r-whatsapp')?.value.trim().replace(/[\s\-()]/g,'')||null;
-  const {data:chef,error}=await db.from('chefs').insert({name,city,area,contact,bio,delivery,status:'pending',avatar_url,whatsapp}).select().single();
+  if(!regLatLng){alert('请在地图上点击选择你的位置');return}
+  const lat=regLatLng.lat, lng=regLatLng.lng;
+  const {data:chef,error}=await db.from('chefs').insert({name,city,area,contact,bio,delivery,status:'pending',avatar_url,whatsapp,lat,lng}).select().single();
   if(error||!chef){btn.disabled=false;btn.textContent='提交申请';alert('提交失败：'+(error?.message||error?.code||JSON.stringify(error)));console.error(error);return}
   const dishes=[];
   for(let i=1;i<=dishCount;i++){

@@ -328,7 +328,10 @@ textarea{resize:none}
       </div>
     </div>
     <div class="field"><label class="lbl">所在城市 <span class="req">*</span></label>
-      <select id="r-city"><option value="">请选择…</option><option>阿姆斯特丹</option><option>鹿特丹</option><option>海牙</option><option>乌得勒支</option><option>埃因霍芬</option><option>格罗宁根</option><option>其他</option></select>
+      <select id="r-city" onchange="document.getElementById('r-city-other').style.display=this.value==='其他'?'block':'none'">
+        <option value="">请选择…</option><option>阿姆斯特丹</option><option>鹿特丹</option><option>海牙</option><option>乌得勒支</option><option>埃因霍芬</option><option>格罗宁根</option><option>其他</option>
+      </select>
+      <input id="r-city-other" type="text" placeholder="请输入城市名" style="display:none;margin-top:8px">
     </div>
     <div class="field"><label class="lbl">大致区域（街区/邮编）<span class="req">*</span></label><input id="r-area" type="text" placeholder="如：De Pijp、1073、南区"></div>
     <div class="field"><label class="lbl">联系方式（微信 / 其他）<span class="req">*</span></label><input id="r-contact" type="text" placeholder="微信号或其他联系方式"></div>
@@ -625,7 +628,8 @@ async function uploadImg(file, path){
 
 async function submitReg(){
   const name=document.getElementById('r-dname').value.trim();
-  const city=document.getElementById('r-city').value;
+  const citySelect=document.getElementById('r-city').value;
+  const city=citySelect==='其他'?(document.getElementById('r-city-other').value.trim()||'其他'):citySelect;
   const area=document.getElementById('r-area').value.trim();
   const contact=document.getElementById('r-contact').value.trim();
   const bio=document.getElementById('r-bio').value.trim();

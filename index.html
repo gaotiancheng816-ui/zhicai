@@ -331,7 +331,8 @@ textarea{resize:none}
       <select id="r-city"><option value="">请选择…</option><option>阿姆斯特丹</option><option>鹿特丹</option><option>海牙</option><option>乌得勒支</option><option>埃因霍芬</option><option>格罗宁根</option><option>其他</option></select>
     </div>
     <div class="field"><label class="lbl">大致区域（街区/邮编）<span class="req">*</span></label><input id="r-area" type="text" placeholder="如：De Pijp、1073、南区"></div>
-    <div class="field"><label class="lbl">联系方式（WhatsApp / 微信）<span class="req">*</span></label><input id="r-contact" type="text" placeholder="+31 6 … 或微信号"></div>
+    <div class="field"><label class="lbl">联系方式（微信 / 其他）<span class="req">*</span></label><input id="r-contact" type="text" placeholder="微信号或其他联系方式"></div>
+    <div class="field"><label class="lbl">WhatsApp 号码</label><input id="r-whatsapp" type="text" placeholder="+31 6 1234 5678（用于接收订单通知）"></div>
     <div class="field" style="margin-bottom:22px"><label class="lbl">自我介绍 <span class="req">*</span></label><textarea id="r-bio" rows="4" placeholder="来自哪里、擅长什么菜…"></textarea></div>
     <button class="btn-primary" onclick="showPage('reg-2')">下一步</button>
   </div>
@@ -541,6 +542,15 @@ async function submitOrder(){
   ['o-name','o-contact','o-time','o-note'].forEach(id=>{document.getElementById(id).value=''});
   state.cart={};
   await loadOrders();
+  const waNum=state.currentChef?.whatsapp;
+  if(waNum){
+    const phone=waNum.replace(/\D/g,'');
+    const msg=encodeURIComponent(`你好！我在自厨平台提交了预约 🍜\n\n`+
+      `姓名：${name}\n联系方式：${contact}\n送达时间：${time}\n\n`+
+      `已选菜品：\n`+items.map(i=>`· ${i.name} × ${i.qty}（€${i.qty*i.price}）`).join('\n')+
+      `\n\n合计参考：€${total}\n\n期待你的确认！`);
+    window.open(`https://wa.me/${phone}?text=${msg}`,'_blank');
+  }
   switchTab('orders');
 }
 
@@ -628,7 +638,8 @@ async function submitReg(){
   const avatarFile=document.getElementById('r-avatar')?.files[0];
   const avatar_url=await uploadImg(avatarFile,'avatars/'+Date.now());
   btn.textContent='提交中…';
-  const {data:chef,error}=await db.from('chefs').insert({name,city,area,contact,bio,delivery,status:'pending',avatar_url}).select().single();
+  const whatsapp=document.getElementById('r-whatsapp')?.value.trim().replace(/[\s\-()]/g,'')||null;
+  const {data:chef,error}=await db.from('chefs').insert({name,city,area,contact,bio,delivery,status:'pending',avatar_url,whatsapp}).select().single();
   if(error||!chef){btn.disabled=false;btn.textContent='提交申请';alert('提交失败：'+(error?.message||error?.code||JSON.stringify(error)));console.error(error);return}
   const dishes=[];
   for(let i=1;i<=dishCount;i++){

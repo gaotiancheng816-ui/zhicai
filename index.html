@@ -189,6 +189,22 @@ textarea{resize:none}
 .form-pad{padding:20px 16px 60px}
 
 .av-a{background:#E07E4B}.av-b{background:#5B8FA8}.av-c{background:#7E6EA8}.av-d{background:#4F9E6F}.av-e{background:#C4674A}.av-f{background:#7A9E5B}
+
+.avatar-upload{width:80px;height:80px;border-radius:var(--r-full);border:2px dashed var(--orange-mid);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;flex-shrink:0;position:relative;background:var(--cream2)}
+.avatar-upload img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
+.avatar-upload .upload-hint{font-size:10px;color:var(--text3);text-align:center;z-index:1;pointer-events:none}
+.avatar-upload i{font-size:20px;color:var(--orange-mid);margin-bottom:2px}
+.avatar-upload input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+
+.dish-img-wrap{width:60px;height:60px;border-radius:var(--r);border:1.5px dashed var(--border);overflow:hidden;flex-shrink:0;position:relative;background:var(--cream2);cursor:pointer}
+.dish-img-wrap img{width:100%;height:100%;object-fit:cover}
+.dish-img-wrap .img-hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;font-size:9px;color:var(--text3);text-align:center;gap:2px}
+.dish-img-wrap .img-hint i{font-size:16px;color:var(--orange-mid)}
+.dish-img-wrap input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+
+.chef-img{width:56px;height:56px;border-radius:var(--r-full);object-fit:cover;flex-shrink:0}
+.detail-img{width:68px;height:68px;border-radius:var(--r-xl);object-fit:cover;flex-shrink:0}
+.menu-dish-img{width:80px;height:80px;border-radius:var(--r-lg);object-fit:cover;flex-shrink:0}
 </style>
 </head>
 <body>
@@ -298,7 +314,19 @@ textarea{resize:none}
   </div>
   <div class="form-pad">
     <div class="prog"><div class="s on"></div><div class="s"></div><div class="s"></div></div>
-    <div class="field"><label class="lbl">展示名称 <span class="req">*</span></label><input id="r-dname" type="text" placeholder="如：王阿姨私厨、小林家的味道"></div>
+    <div class="field" style="display:flex;gap:16px;align-items:flex-start">
+      <div>
+        <label class="lbl" style="margin-bottom:8px">头像</label>
+        <div class="avatar-upload" id="avatar-preview">
+          <i class="ti ti-camera"></i>
+          <span class="upload-hint">上传头像</span>
+          <input type="file" id="r-avatar" accept="image/*" onchange="previewImg(this,'avatar-preview')">
+        </div>
+      </div>
+      <div style="flex:1">
+        <div class="field"><label class="lbl">展示名称 <span class="req">*</span></label><input id="r-dname" type="text" placeholder="如：王阿姨私厨、小林家的味道"></div>
+      </div>
+    </div>
     <div class="field"><label class="lbl">所在城市 <span class="req">*</span></label>
       <select id="r-city"><option value="">请选择…</option><option>阿姆斯特丹</option><option>鹿特丹</option><option>海牙</option><option>乌得勒支</option><option>埃因霍芬</option><option>格罗宁根</option><option>其他</option></select>
     </div>
@@ -407,12 +435,17 @@ async function loadChefs(){
   renderChefList(state.chefs);
 }
 
+function avatarEl(c, size='56px', radius='var(--r-full)'){
+  if(c.avatar_url) return `<img src="${c.avatar_url}" style="width:${size};height:${size};border-radius:${radius};object-fit:cover;flex-shrink:0">`;
+  return `<div class="avatar ${avC(c._idx||0)}" style="width:${size};height:${size};border-radius:${radius};font-size:calc(${size} * 0.36)">${ini(c.name)}</div>`;
+}
+
 function renderChefList(list){
   const sorted=[...list].sort((a,b)=>(a.dist||0)-(b.dist||0));
   document.getElementById('chef-list').innerHTML=sorted.length
     ?sorted.map(c=>`
       <div class="chef-card" onclick="openChef('${c.id}')">
-        <div class="avatar ${avC(c._idx)}">${ini(c.name)}</div>
+        ${avatarEl(c)}
         <div class="chef-body">
           <div class="chef-name">${c.name}</div>
           <div class="chef-location"><i class="ti ti-map-pin"></i>${c.city||''} ${c.area||''}</div>
@@ -437,7 +470,10 @@ function openChef(id){
   if(!c)return;
   state.currentChef=c;
   document.getElementById('d-title').textContent=c.name;
-  const av=document.getElementById('d-avatar-el');av.textContent=ini(c.name);av.className='detail-avatar '+avC(c._idx);
+  const avWrap=document.getElementById('d-avatar-el');
+  if(c.avatar_url){avWrap.innerHTML='';avWrap.className='detail-avatar';avWrap.style.overflow='hidden';avWrap.style.padding='0';avWrap.innerHTML=`<img src="${c.avatar_url}" style="width:100%;height:100%;object-fit:cover">`;}
+  else{avWrap.textContent=ini(c.name);avWrap.className='detail-avatar '+avC(c._idx);avWrap.style='';}
+  const av=avWrap;
   document.getElementById('d-name').textContent=c.name;
   document.getElementById('d-meta').innerHTML=`<i class="ti ti-map-pin"></i><span>${c.city||''} ${c.area||''}${c.dist?' · '+c.dist+' km':''}</span>`;
   document.getElementById('d-tags').innerHTML=(c.tags||[]).map(t=>`<span class="tag">${t}</span>`).join('');
@@ -446,6 +482,7 @@ function openChef(id){
   document.getElementById('d-contact').textContent=c.contact||'-';
   document.getElementById('menu-list').innerHTML=(c.menu||[]).map(m=>`
     <div class="menu-card">
+      ${m.image_url?`<img src="${m.image_url}" style="width:100%;height:160px;object-fit:cover;border-radius:var(--r-lg) var(--r-lg) 0 0;margin:-14px -14px 12px;display:block;width:calc(100% + 28px)">`:''}
       <div class="menu-top"><span class="menu-name">${m.name}</span><span class="menu-price">€${m.price||0}</span></div>
       <div class="menu-desc">${m.description||''}</div>
       <div class="menu-footer">
@@ -540,10 +577,40 @@ function addDish(){
   const el=document.getElementById('dish-list');const div=document.createElement('div');
   div.className='dish-block';div.id='dish-'+id;
   div.innerHTML=`<div class="dish-head"><p>菜品 ${id}</p><button class="dish-del" onclick="document.getElementById('dish-${id}').remove()"><i class="ti ti-x"></i></button></div>
-    <input type="text" id="dn-${id}" placeholder="菜品名称（如：水煮鱼）" style="margin-bottom:8px">
-    <input type="text" id="dd-${id}" placeholder="简介（如：草鱼、宽粉、藤椒）" style="margin-bottom:8px">
+    <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:8px">
+      <div class="dish-img-wrap" id="dimg-wrap-${id}">
+        <div class="img-hint"><i class="ti ti-photo"></i><span>图片</span></div>
+        <input type="file" id="di-${id}" accept="image/*" onchange="previewImg(this,'dimg-wrap-${id}')">
+      </div>
+      <div style="flex:1">
+        <input type="text" id="dn-${id}" placeholder="菜品名称（如：水煮鱼）" style="margin-bottom:8px">
+        <input type="text" id="dd-${id}" placeholder="简介（如：草鱼、宽粉、藤椒）">
+      </div>
+    </div>
     <div class="dish-row"><input type="number" id="dp-${id}" placeholder="价格 €" min="1"><select id="dt-${id}"><option value="">需要提前…</option><option>提前 1 小时</option><option>提前 2 小时</option><option>提前 3 小时</option><option>提前 4 小时</option><option>提前 5 小时</option><option>提前半天</option><option>提前 1 天</option></select></div>`;
   el.appendChild(div);
+}
+
+function previewImg(input, wrapperId){
+  const file=input.files[0];if(!file)return;
+  const wrap=document.getElementById(wrapperId);
+  const reader=new FileReader();
+  reader.onload=e=>{
+    let img=wrap.querySelector('img');
+    if(!img){img=document.createElement('img');wrap.insertBefore(img,wrap.firstChild)}
+    img.src=e.target.result;
+    const hint=wrap.querySelector('.upload-hint,.img-hint');if(hint)hint.style.display='none';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function uploadImg(file, path){
+  if(!file)return null;
+  const ext=file.name.split('.').pop();
+  const {data,error}=await db.storage.from('images').upload(path+'.'+ext, file, {upsert:true});
+  if(error){console.error('upload error',error);return null;}
+  const {data:{publicUrl}}=db.storage.from('images').getPublicUrl(path+'.'+ext);
+  return publicUrl;
 }
 
 async function submitReg(){
@@ -557,8 +624,11 @@ async function submitReg(){
   const deliver=document.getElementById('opt-deliver').checked;
   const delivery=[pickup&&'自取',deliver&&'配送'].filter(Boolean).join(' / ')||'待填写';
   const btn=document.getElementById('reg-submit-btn');
-  btn.disabled=true;btn.textContent='提交中…';
-  const {data:chef,error}=await db.from('chefs').insert({name,city,area,contact,bio,delivery,status:'pending'}).select().single();
+  btn.disabled=true;btn.textContent='上传图片中…';
+  const avatarFile=document.getElementById('r-avatar')?.files[0];
+  const avatar_url=await uploadImg(avatarFile,'avatars/'+Date.now());
+  btn.textContent='提交中…';
+  const {data:chef,error}=await db.from('chefs').insert({name,city,area,contact,bio,delivery,status:'pending',avatar_url}).select().single();
   if(error||!chef){btn.disabled=false;btn.textContent='提交申请';alert('提交失败：'+(error?.message||error?.code||JSON.stringify(error)));console.error(error);return}
   const dishes=[];
   for(let i=1;i<=dishCount;i++){
@@ -567,7 +637,10 @@ async function submitReg(){
     const p=parseFloat(document.getElementById('dp-'+i)?.value)||0;
     const t=document.getElementById('dt-'+i)?.value||'提前 2 小时';
     const d=document.getElementById('dd-'+i)?.value.trim()||'';
-    if(n)dishes.push({chef_id:chef.id,name:n,price:p,prep:t,description:d});
+    if(!n)continue;
+    const imgFile=document.getElementById('di-'+i)?.files[0];
+    const image_url=await uploadImg(imgFile,'dishes/'+Date.now()+'_'+i);
+    dishes.push({chef_id:chef.id,name:n,price:p,prep:t,description:d,image_url});
   }
   if(dishes.length)await db.from('menu_items').insert(dishes);
   state.myChef={...chef,menu:dishes};
@@ -580,7 +653,7 @@ function renderKitchen(){
   const isOnline=c.status==='approved';
   document.getElementById('my-chef-info').innerHTML=`
     <div class="kitchen-top">
-      <div class="kitchen-av av-d">${ini(c.name)}</div>
+      ${c.avatar_url?`<img src="${c.avatar_url}" style="width:58px;height:58px;border-radius:var(--r-xl);object-fit:cover;flex-shrink:0">`:`<div class="kitchen-av av-d">${ini(c.name)}</div>`}
       <div><div class="kitchen-name">${c.name}</div><div class="kitchen-city">${c.city||''} · ${c.area||''}</div><span class="badge ${isOnline?'badge-online':'badge-review'}">${isOnline?'已上线':'审核中'}</span></div>
     </div>
     <div class="kitchen-chips">

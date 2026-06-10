@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>自厨 · 荷兰私家中餐</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 
@@ -108,6 +109,7 @@ nav{background:var(--white);border-top:1px solid var(--border);display:flex;flex
 
 .btn-primary{display:block;width:100%;padding:15px;background:var(--orange);color:var(--white);border:none;border-radius:var(--r-full);font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;text-align:center;letter-spacing:0.3px;transition:opacity .15s}
 .btn-primary:active{opacity:.85}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed}
 .btn-secondary{display:block;width:100%;padding:13px;background:none;color:var(--text2);border:1.5px solid var(--border);border-radius:var(--r-full);font-size:14px;font-weight:500;cursor:pointer;font-family:inherit;text-align:center}
 .btn-dashed{width:100%;padding:12px;background:none;border:1.5px dashed var(--orange-mid);border-radius:var(--r-lg);font-size:13px;color:var(--orange);cursor:pointer;font-family:inherit;margin-bottom:18px;font-weight:500}
 
@@ -180,6 +182,9 @@ textarea{resize:none}
 .dish-row input,.dish-row select{flex:1}
 .dish-row select{flex:2}
 
+.loading{padding:48px 24px;text-align:center;color:var(--text3);font-size:14px}
+.loading i{font-size:32px;display:block;margin-bottom:10px;opacity:.4}
+
 .content-pad{padding:14px 16px 100px}
 .form-pad{padding:20px 16px 60px}
 
@@ -206,7 +211,7 @@ textarea{resize:none}
       <div class="section-label" style="margin:0">今日可约</div>
       <span style="font-size:12px;color:var(--text3)">按距离排列</span>
     </div>
-    <div id="chef-list"></div>
+    <div id="chef-list"><div class="loading"><i class="ti ti-loader"></i>加载中…</div></div>
   </div>
 </div>
 
@@ -252,7 +257,7 @@ textarea{resize:none}
     <div class="field"><label class="lbl">希望送达 / 取餐时间 <span class="req">*</span></label><input id="o-time" type="text" placeholder="如：周五 18:30"></div>
     <div class="field" style="margin-bottom:20px"><label class="lbl">备注（可选）</label><textarea id="o-note" rows="3" placeholder="口味偏好、过敏信息、地址…"></textarea></div>
     <div class="notice-soft" style="margin-bottom:20px"><i class="ti ti-info-circle"></i><span>提交后私厨会通过 WhatsApp/微信 联系你确认，付款请线下结算。</span></div>
-    <button class="btn-primary" onclick="submitOrder()">发送预约请求</button>
+    <button class="btn-primary" id="order-submit-btn" onclick="submitOrder()">发送预约请求</button>
   </div>
 </div>
 
@@ -283,7 +288,6 @@ textarea{resize:none}
   <div style="padding:16px 16px 100px">
     <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:12px">我的菜单</div>
     <div id="my-menu"></div>
-    <button class="btn-dashed"><i class="ti ti-plus" aria-hidden="true"></i> 添加菜品</button>
   </div>
 </div>
 
@@ -334,7 +338,7 @@ textarea{resize:none}
     <div class="field"><label class="lbl">可接单时间段</label><input id="r-hours" type="text" placeholder="如：工作日傍晚、周末全天"></div>
     <div class="field" style="margin-bottom:22px"><label class="lbl">补充说明（可选）</label><textarea id="r-extra" rows="3" placeholder="配送范围、最小起订量…"></textarea></div>
     <div class="notice-soft" style="margin-bottom:22px"><i class="ti ti-shield-check"></i><span>提交后我们会在 24 小时内审核，通过后你的主页上线。平台完全免费。</span></div>
-    <button class="btn-primary" onclick="submitReg()">提交申请</button>
+    <button class="btn-primary" id="reg-submit-btn" onclick="submitReg()">提交申请</button>
   </div>
 </div>
 
@@ -358,72 +362,98 @@ textarea{resize:none}
 </div>
 
 <script>
+const { createClient } = supabase;
+const db = createClient(
+  'https://qdpyudlkdzuaqebhqjhf.supabase.co',
+  'sb_publishable_64SFkF8KpeHQ8pF4KT8Akg_lr6Uc353'
+);
+
 const AV=['av-a','av-b','av-c','av-d','av-e','av-f'];
-function avC(id){return AV[(id-1)%AV.length]}
+function avC(idx){return AV[idx%AV.length]}
 function ini(name){return name.replace(/私厨|家的味道|饺子馆|煲仔饭/g,'').slice(0,1)||'厨'}
 
-const CHEFS=[
-  {id:1,name:"王阿姨私厨",dist:1.2,city:"南区",bio:"四川成都人，在荷兰做了12年家常川菜。用正宗郫县豆瓣，水煮鱼和麻婆豆腐是招牌，让你找到家的味道。",delivery:"自取或3km内配送",contact:"WhatsApp +31 6 1234 5678",tags:["川菜","家常"],
-    menu:[{id:"m1",name:"水煮鱼",price:15,prep:"提前 4 小时",desc:"草鱼、宽粉、藤椒"},{id:"m2",name:"麻婆豆腐",price:10,prep:"提前 2 小时",desc:"嫩豆腐、猪肉末、郫县豆瓣"},{id:"m3",name:"夫妻肺片",price:12,prep:"提前 3 小时",desc:"牛肉、牛杂、红油"},{id:"m4",name:"家常套餐（3菜1汤）",price:28,prep:"提前 5 小时",desc:"当日菜品组合，含米饭"}]},
-  {id:2,name:"小林煲仔饭",dist:2.4,city:"东区",bio:"广州人，专做煲仔饭和老火靓汤，食材每天从华人超市选购，保证新鲜。",delivery:"仅自取",contact:"微信 linlin_ams",tags:["粤菜","煲仔饭"],
-    menu:[{id:"m5",name:"腊味煲仔饭",price:14,prep:"提前 2 小时",desc:"广式腊肠、腊肉"},{id:"m6",name:"排骨煲仔饭",price:13,prep:"提前 2 小时",desc:"黑豆豉排骨"},{id:"m7",name:"老火靓汤（例）",price:8,prep:"提前 3 小时",desc:"每日不同，煲足3小时"}]},
-  {id:3,name:"东北饺子馆",dist:3.1,city:"西区",bio:"黑龙江哈尔滨人，手工水饺馅料每天现调，速冻也可以，多买备着。",delivery:"自取或配送（€5起送）",contact:"WhatsApp +31 6 9876 5432",tags:["东北菜","手工饺子"],
-    menu:[{id:"m8",name:"水饺·猪肉大葱（20只）",price:12,prep:"提前 3 小时",desc:"皮薄馅大，手工现包"},{id:"m9",name:"水饺·韭菜鸡蛋（20只）",price:11,prep:"提前 3 小时",desc:"素馅，家常味道"},{id:"m10",name:"锅贴（15只）",price:10,prep:"提前 2 小时",desc:"底脆皮薄，猪肉馅"},{id:"m11",name:"速冻水饺（50只）",price:22,prep:"提前 1 天",desc:"可冷冻保存，方便囤货"}]}
-];
-
-let state={currentChef:null,cart:{},orders:[],myChef:null,activeTab:'chefs'};
+let state={chefs:[],currentChef:null,cart:{},orders:[],myChef:null,activeTab:'chefs'};
 let dishCount=0;
 
-function showPage(n){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));const el=document.getElementById('p-'+n);if(el){el.classList.add('active');el.scrollTo&&el.scrollTo(0,0)}}
+function showPage(n){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  const el=document.getElementById('p-'+n);
+  if(el){el.classList.add('active');el.scrollTo&&el.scrollTo(0,0)}
+}
+
 function switchTab(tab){
   state.activeTab=tab;
   ['chefs','orders','kitchen'].forEach(t=>document.getElementById('tab-'+t).classList.toggle('active',t===tab));
-  if(tab==='chefs'){renderChefs(CHEFS);showPage('chefs')}
+  if(tab==='chefs'){showPage('chefs')}
   else if(tab==='orders'){renderOrders();showPage('orders')}
   else if(tab==='kitchen'){state.myChef?(renderKitchen(),showPage('kitchen-reg')):showPage('kitchen-empty')}
 }
-function goBack(page){showPage(page);if(page==='chefs')switchTab('chefs')}
 
-function renderChefs(list){
-  const sorted=[...list].sort((a,b)=>a.dist-b.dist);
-  document.getElementById('chef-list').innerHTML=sorted.map(c=>`
-    <div class="chef-card" onclick="openChef(${c.id})">
-      <div class="avatar ${avC(c.id)}">${ini(c.name)}</div>
-      <div class="chef-body">
-        <div class="chef-name">${c.name}</div>
-        <div class="chef-location"><i class="ti ti-map-pin"></i>阿姆斯特丹 ${c.city}</div>
-        <div class="tags-row">${(c.tags||[]).map(t=>`<span class="tag">${t}</span>`).join('')}</div>
-      </div>
-      <div class="chef-meta"><div class="dist">${c.dist}</div><div class="dist-unit">km</div></div>
-    </div>`).join('');
+function goBack(page){
+  if(page==='chefs'){switchTab('chefs')}
+  else{showPage(page)}
+}
+
+async function loadChefs(){
+  const el=document.getElementById('chef-list');
+  el.innerHTML='<div class="loading"><i class="ti ti-loader"></i>加载中…</div>';
+  const {data:chefs,error}=await db.from('chefs').select('*').eq('status','approved').order('created_at');
+  if(error||!chefs||!chefs.length){
+    el.innerHTML='<div class="empty"><div class="empty-icon"><i class="ti ti-chef-hat"></i></div><h2>暂无私厨</h2><p>还没有私厨入驻，快来成为第一个！</p></div>';
+    return;
+  }
+  const {data:allMenus}=await db.from('menu_items').select('*').in('chef_id',chefs.map(c=>c.id));
+  state.chefs=chefs.map((c,i)=>({...c,_idx:i,menu:(allMenus||[]).filter(m=>m.chef_id===c.id)}));
+  renderChefList(state.chefs);
+}
+
+function renderChefList(list){
+  const sorted=[...list].sort((a,b)=>(a.dist||0)-(b.dist||0));
+  document.getElementById('chef-list').innerHTML=sorted.length
+    ?sorted.map(c=>`
+      <div class="chef-card" onclick="openChef('${c.id}')">
+        <div class="avatar ${avC(c._idx)}">${ini(c.name)}</div>
+        <div class="chef-body">
+          <div class="chef-name">${c.name}</div>
+          <div class="chef-location"><i class="ti ti-map-pin"></i>${c.city||''} ${c.area||''}</div>
+          <div class="tags-row">${(c.tags||[]).map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+        </div>
+        ${c.dist?`<div class="chef-meta"><div class="dist">${c.dist}</div><div class="dist-unit">km</div></div>`:''}
+      </div>`).join('')
+    :'<div class="empty"><div class="empty-icon"><i class="ti ti-chef-hat"></i></div><h2>没有找到</h2><p>试试其他关键词</p></div>';
 }
 
 function filterChefs(q){
-  if(!q.trim()){renderChefs(CHEFS);return}
+  if(!q.trim()){renderChefList(state.chefs);return}
   const kw=q.toLowerCase();
-  renderChefs(CHEFS.filter(c=>c.name.includes(kw)||c.menu.some(m=>m.name.includes(kw)||m.desc.includes(kw))));
+  renderChefList(state.chefs.filter(c=>
+    c.name.includes(kw)||(c.menu||[]).some(m=>m.name.includes(kw)||(m.description||'').includes(kw))
+  ));
 }
 
 function openChef(id){
-  state.cart={};state.currentChef=CHEFS.find(c=>c.id===id);const c=state.currentChef;
+  state.cart={};
+  const c=state.chefs.find(ch=>ch.id===id);
+  if(!c)return;
+  state.currentChef=c;
   document.getElementById('d-title').textContent=c.name;
-  const av=document.getElementById('d-avatar-el');av.textContent=ini(c.name);av.className='detail-avatar '+avC(c.id);
+  const av=document.getElementById('d-avatar-el');av.textContent=ini(c.name);av.className='detail-avatar '+avC(c._idx);
   document.getElementById('d-name').textContent=c.name;
-  document.getElementById('d-meta').innerHTML=`<i class="ti ti-map-pin"></i><span>阿姆斯特丹 ${c.city} · ${c.dist} km</span>`;
+  document.getElementById('d-meta').innerHTML=`<i class="ti ti-map-pin"></i><span>${c.city||''} ${c.area||''}${c.dist?' · '+c.dist+' km':''}</span>`;
   document.getElementById('d-tags').innerHTML=(c.tags||[]).map(t=>`<span class="tag">${t}</span>`).join('');
-  document.getElementById('d-bio').textContent=c.bio;
-  document.getElementById('d-delivery').textContent=c.delivery;
-  document.getElementById('d-contact').textContent=c.contact;
-  document.getElementById('menu-list').innerHTML=c.menu.map(m=>`
+  document.getElementById('d-bio').textContent=c.bio||'';
+  document.getElementById('d-delivery').textContent=c.delivery||'联系私厨确认';
+  document.getElementById('d-contact').textContent=c.contact||'-';
+  document.getElementById('menu-list').innerHTML=(c.menu||[]).map(m=>`
     <div class="menu-card">
-      <div class="menu-top"><span class="menu-name">${m.name}</span><span class="menu-price">€${m.price}</span></div>
-      <div class="menu-desc">${m.desc}</div>
+      <div class="menu-top"><span class="menu-name">${m.name}</span><span class="menu-price">€${m.price||0}</span></div>
+      <div class="menu-desc">${m.description||''}</div>
       <div class="menu-footer">
-        <span class="prep-pill"><i class="ti ti-clock"></i>${m.prep}</span>
+        <span class="prep-pill"><i class="ti ti-clock"></i>${m.prep||'请提前告知'}</span>
         <div class="qty-ctrl">
-          <button class="qty-btn minus" onclick="changeQty('${m.id}',-1)">−</button>
+          <button class="qty-btn minus" onclick="changeQty('${m.id}',-1,${m.price||0})">−</button>
           <span class="qty-num" id="qty-${m.id}">0</span>
-          <button class="qty-btn plus" onclick="changeQty('${m.id}',1)">+</button>
+          <button class="qty-btn plus" onclick="changeQty('${m.id}',1,${m.price||0})">+</button>
         </div>
       </div>
     </div>`).join('');
@@ -431,55 +461,81 @@ function openChef(id){
   showPage('detail');
 }
 
-function changeQty(mid,delta){
-  state.cart[mid]=Math.max(0,(state.cart[mid]||0)+delta);
-  const el=document.getElementById('qty-'+mid);if(el)el.textContent=state.cart[mid];
-  document.getElementById('cart-bar').style.display=Object.values(state.cart).some(v=>v>0)?'block':'none';
+function changeQty(mid,delta,price){
+  if(!state.cart[mid])state.cart[mid]={qty:0,price};
+  state.cart[mid].qty=Math.max(0,state.cart[mid].qty+delta);
+  const el=document.getElementById('qty-'+mid);if(el)el.textContent=state.cart[mid].qty;
+  document.getElementById('cart-bar').style.display=Object.values(state.cart).some(v=>v.qty>0)?'block':'none';
 }
 
 function openOrder(){
-  const c=state.currentChef,items=c.menu.filter(m=>state.cart[m.id]>0);
+  const c=state.currentChef;
+  const items=Object.entries(state.cart).filter(([,v])=>v.qty>0).map(([id,v])=>{
+    const m=(c.menu||[]).find(x=>x.id===id)||{};
+    return{id,name:m.name||'菜品',qty:v.qty,price:v.price};
+  });
   let total=0;
-  const rows=items.map(m=>{const sub=m.price*state.cart[m.id];total+=sub;return`<div class="s-row"><span>${m.name} × ${state.cart[m.id]}</span><span style="color:var(--text);font-weight:500">€${sub}</span></div>`;}).join('');
-  const maxPrep=items.reduce((a,m)=>Math.max(a,parseInt(m.prep)||0),0);
-  document.getElementById('order-items').innerHTML=rows+`<div class="s-total"><span>合计参考</span><span>€${total}</span></div><p style="font-size:12px;color:var(--text3);margin-top:5px">最长准备时间：${maxPrep} 小时，请预留充足时间</p>`;
+  const rows=items.map(i=>{const sub=i.price*i.qty;total+=sub;return`<div class="s-row"><span>${i.name} × ${i.qty}</span><span style="color:var(--text);font-weight:500">€${sub}</span></div>`;}).join('');
+  document.getElementById('order-items').innerHTML=rows+`<div class="s-total"><span>合计参考</span><span>€${total}</span></div>`;
   showPage('order');
 }
 
-function submitOrder(){
+async function submitOrder(){
   const name=document.getElementById('o-name').value.trim();
   const contact=document.getElementById('o-contact').value.trim();
   const time=document.getElementById('o-time').value.trim();
   if(!name||!contact||!time){alert('请填写姓名、联系方式和送达时间');return}
   const c=state.currentChef;
-  const items=c.menu.filter(m=>state.cart[m.id]>0).map(m=>({name:m.name,qty:state.cart[m.id],price:m.price}));
+  const items=Object.entries(state.cart).filter(([,v])=>v.qty>0).map(([id,v])=>{
+    const m=(c.menu||[]).find(x=>x.id===id)||{};
+    return{name:m.name||'菜品',qty:v.qty,price:v.price};
+  });
   const total=items.reduce((s,i)=>s+i.qty*i.price,0);
-  const now=new Date();
-  state.orders.unshift({id:'#'+Math.floor(Math.random()*9000+1000),chef:c.name,av:avC(c.id),ini:ini(c.name),items,total,time,status:'待确认',ts:`${now.getMonth()+1}月${now.getDate()}日`});
+  const btn=document.getElementById('order-submit-btn');
+  btn.disabled=true;btn.textContent='提交中…';
+  const {error}=await db.from('orders').insert({
+    chef_id:c.id,chef_name:c.name,
+    customer_name:name,contact,delivery_time:time,
+    note:document.getElementById('o-note').value.trim(),
+    items,total,status:'pending'
+  });
+  btn.disabled=false;btn.textContent='发送预约请求';
+  if(error){alert('提交失败，请重试');console.error(error);return}
   ['o-name','o-contact','o-time','o-note'].forEach(id=>{document.getElementById(id).value=''});
-  state.cart={};switchTab('orders');
+  state.cart={};
+  await loadOrders();
+  switchTab('orders');
+}
+
+async function loadOrders(){
+  const {data}=await db.from('orders').select('*').order('created_at',{ascending:false}).limit(50);
+  state.orders=data||[];
 }
 
 function renderOrders(){
   const el=document.getElementById('orders-list');
-  if(!state.orders.length){el.innerHTML=`<div class="empty"><div class="empty-icon"><i class="ti ti-receipt-off"></i></div><h2>还没有订单</h2><p>浏览附近私厨，选好菜品提交预约。</p></div>`;return}
-  el.innerHTML=state.orders.map(o=>`
+  if(!state.orders.length){
+    el.innerHTML='<div class="empty"><div class="empty-icon"><i class="ti ti-receipt-off"></i></div><h2>还没有订单</h2><p>浏览附近私厨，选好菜品提交预约。</p></div>';
+    return;
+  }
+  el.innerHTML=state.orders.map((o,i)=>`
     <div class="order-card">
       <div class="order-head">
         <div class="order-left">
-          <div class="avatar ${o.av}" style="width:44px;height:44px;font-size:18px">${o.ini}</div>
-          <div><div class="order-cname">${o.chef}</div><div class="order-cmeta">${o.ts} · ${o.id}</div></div>
+          <div class="avatar ${avC(i)}" style="width:44px;height:44px;font-size:18px">${ini(o.chef_name||'厨')}</div>
+          <div><div class="order-cname">${o.chef_name||'-'}</div><div class="order-cmeta">${o.created_at?o.created_at.slice(0,10):''}</div></div>
         </div>
-        <span class="badge ${o.status==='待确认'?'badge-pending':'badge-done'}">${o.status}</span>
+        <span class="badge ${o.status==='pending'?'badge-pending':'badge-done'}">${o.status==='pending'?'待确认':'已完成'}</span>
       </div>
       <div class="order-items">
-        ${o.items.map(i=>`<div class="oi-row"><span>${i.name} × ${i.qty}</span><span>€${i.qty*i.price}</span></div>`).join('')}
-        <div class="o-total-row"><span>合计参考</span><span>€${o.total}</span></div>
-        <div class="order-time-row"><i class="ti ti-clock" style="font-size:13px"></i>送达时间：${o.time}</div>
+        ${(o.items||[]).map(i=>`<div class="oi-row"><span>${i.name} × ${i.qty}</span><span>€${i.qty*i.price}</span></div>`).join('')}
+        <div class="o-total-row"><span>合计参考</span><span>€${o.total||0}</span></div>
+        <div class="order-time-row"><i class="ti ti-clock" style="font-size:13px"></i>送达时间：${o.delivery_time||'-'}</div>
       </div>
     </div>`).join('');
 }
 
+let dishCount=0;
 function addDish(){
   dishCount++;const id=dishCount;
   const el=document.getElementById('dish-list');const div=document.createElement('div');
@@ -491,47 +547,57 @@ function addDish(){
   el.appendChild(div);
 }
 
-function submitReg(){
-  const name=document.getElementById('r-dname').value.trim()||'新私厨';
-  const city=document.getElementById('r-city').value||'阿姆斯特丹';
-  const area=document.getElementById('r-area').value.trim()||'未填写';
-  const contact=document.getElementById('r-contact').value.trim()||'未填写';
-  const bio=document.getElementById('r-bio').value.trim()||'';
+async function submitReg(){
+  const name=document.getElementById('r-dname').value.trim();
+  const city=document.getElementById('r-city').value;
+  const area=document.getElementById('r-area').value.trim();
+  const contact=document.getElementById('r-contact').value.trim();
+  const bio=document.getElementById('r-bio').value.trim();
+  if(!name||!city||!area||!contact){alert('请填写所有必填项');return}
   const pickup=document.getElementById('opt-pickup').checked;
   const deliver=document.getElementById('opt-deliver').checked;
   const delivery=[pickup&&'自取',deliver&&'配送'].filter(Boolean).join(' / ')||'待填写';
-  const menu=[];
+  const btn=document.getElementById('reg-submit-btn');
+  btn.disabled=true;btn.textContent='提交中…';
+  const {data:chef,error}=await db.from('chefs').insert({name,city,area,contact,bio,delivery,status:'pending'}).select().single();
+  if(error||!chef){btn.disabled=false;btn.textContent='提交申请';alert('提交失败，请重试');console.error(error);return}
+  const dishes=[];
   for(let i=1;i<=dishCount;i++){
     const el=document.getElementById('dish-'+i);if(!el)continue;
     const n=document.getElementById('dn-'+i)?.value.trim();
-    const p=parseInt(document.getElementById('dp-'+i)?.value)||0;
+    const p=parseFloat(document.getElementById('dp-'+i)?.value)||0;
     const t=document.getElementById('dt-'+i)?.value||'提前 2 小时';
     const d=document.getElementById('dd-'+i)?.value.trim()||'';
-    if(n)menu.push({name:n,price:p,prep:t,desc:d});
+    if(n)dishes.push({chef_id:chef.id,name:n,price:p,prep:t,description:d});
   }
-  state.myChef={name,city,area,contact,bio,delivery,menu:menu.length?menu:[{name:'今日特供',price:15,prep:'提前 3 小时',desc:'详情请联系私厨'}],status:'pending'};
+  if(dishes.length)await db.from('menu_items').insert(dishes);
+  state.myChef={...chef,menu:dishes};
+  btn.disabled=false;btn.textContent='提交申请';
   showPage('reg-done');
 }
 
 function renderKitchen(){
-  const c=state.myChef,isOnline=c.status==='approved';
+  const c=state.myChef;
+  const isOnline=c.status==='approved';
   document.getElementById('my-chef-info').innerHTML=`
     <div class="kitchen-top">
       <div class="kitchen-av av-d">${ini(c.name)}</div>
-      <div><div class="kitchen-name">${c.name}</div><div class="kitchen-city">${c.city} · ${c.area}</div><span class="badge ${isOnline?'badge-online':'badge-review'}">${isOnline?'已上线':'审核中'}</span></div>
+      <div><div class="kitchen-name">${c.name}</div><div class="kitchen-city">${c.city||''} · ${c.area||''}</div><span class="badge ${isOnline?'badge-online':'badge-review'}">${isOnline?'已上线':'审核中'}</span></div>
     </div>
     <div class="kitchen-chips">
-      <div class="info-chip"><div class="ic-label">联系方式</div><div class="ic-val">${c.contact}</div></div>
-      <div class="info-chip"><div class="ic-label">配送</div><div class="ic-val">${c.delivery}</div></div>
+      <div class="info-chip"><div class="ic-label">联系方式</div><div class="ic-val">${c.contact||'-'}</div></div>
+      <div class="info-chip"><div class="ic-label">配送</div><div class="ic-val">${c.delivery||'-'}</div></div>
     </div>`;
-  document.getElementById('my-menu').innerHTML=c.menu.map(m=>`
+  document.getElementById('my-menu').innerHTML=(c.menu||[]).map(m=>`
     <div class="menu-card" style="display:flex;justify-content:space-between;align-items:center">
-      <div><div style="font-size:14px;font-weight:600;margin-bottom:5px">${m.name}</div><span class="prep-pill"><i class="ti ti-clock"></i>${m.prep}</span></div>
-      <div class="menu-price">€${m.price}</div>
+      <div><div style="font-size:14px;font-weight:600;margin-bottom:5px">${m.name}</div><span class="prep-pill"><i class="ti ti-clock"></i>${m.prep||''}</span></div>
+      <div class="menu-price">€${m.price||0}</div>
     </div>`).join('');
 }
 
-renderChefs(CHEFS);
+// 初始化
+loadChefs();
+loadOrders();
 addDish();
 </script>
 </body>

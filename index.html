@@ -559,7 +559,7 @@ async function submitReg(){
   const btn=document.getElementById('reg-submit-btn');
   btn.disabled=true;btn.textContent='提交中…';
   const {data:chef,error}=await db.from('chefs').insert({name,city,area,contact,bio,delivery,status:'pending'}).select().single();
-  if(error||!chef){btn.disabled=false;btn.textContent='提交申请';alert('提交失败，请重试');console.error(error);return}
+  if(error||!chef){btn.disabled=false;btn.textContent='提交申请';alert('提交失败：'+(error?.message||error?.code||JSON.stringify(error)));console.error(error);return}
   const dishes=[];
   for(let i=1;i<=dishCount;i++){
     const el=document.getElementById('dish-'+i);if(!el)continue;

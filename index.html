@@ -516,7 +516,14 @@ function switchTab(tab){
   ['chefs','orders','kitchen'].forEach(t=>document.getElementById('tab-'+t).classList.toggle('active',t===tab));
   if(tab==='chefs'){showPage('chefs')}
   else if(tab==='orders'){renderOrders();showPage('orders')}
-  else if(tab==='kitchen'){state.myChef?(renderKitchen(),showPage('kitchen-reg')):showPage('kitchen-empty')}
+  else if(tab==='kitchen'){
+    if(state.myChef){renderKitchen();showPage('kitchen-reg');}
+    else if(localStorage.getItem('zc_chef_id')){
+      showPage('kitchen-reg');
+      document.getElementById('my-chef-info').innerHTML='<div class="loading" style="padding:32px"><i class="ti ti-loader"></i>加载中…</div>';
+      restoreChef().then(()=>{if(state.myChef){renderKitchen();}else{showPage('kitchen-empty');}});
+    }else{showPage('kitchen-empty');}
+  }
 }
 
 function goBack(page){

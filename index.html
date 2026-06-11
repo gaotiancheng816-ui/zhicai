@@ -466,6 +466,14 @@ const db = createClient(
   'sb_publishable_64SFkF8KpeHQ8pF4KT8Akg_lr6Uc353'
 );
 
+// 本地持久化
+function getOrCreateUserId(){
+  let id=localStorage.getItem('zc_user_id');
+  if(!id){id=crypto.randomUUID();localStorage.setItem('zc_user_id',id);}
+  return id;
+}
+const USER_ID=getOrCreateUserId();
+
 const AV=['av-a','av-b','av-c','av-d','av-e','av-f'];
 function avC(idx){return AV[idx%AV.length]}
 function ini(name){return name.replace(/私厨|家的味道|饺子馆|煲仔饭/g,'').slice(0,1)||'厨'}
@@ -642,7 +650,7 @@ async function submitOrder(){
     chef_id:c.id,chef_name:c.name,
     customer_name:name,contact,delivery_time:time,
     note:document.getElementById('o-note').value.trim(),
-    items,total,status:'pending'
+    items,total,status:'pending',user_id:USER_ID
   });
   btn.disabled=false;btn.textContent='发送预约请求';
   if(error){alert('提交失败，请重试');console.error(error);return}
@@ -662,7 +670,7 @@ async function submitOrder(){
 }
 
 async function loadOrders(){
-  const {data}=await db.from('orders').select('*').order('created_at',{ascending:false}).limit(50);
+  const {data}=await db.from('orders').select('*').eq('user_id',USER_ID).order('created_at',{ascending:false}).limit(50);
   state.orders=data||[];
 }
 
@@ -765,6 +773,7 @@ async function submitReg(){
   }
   if(dishes.length)await db.from('menu_items').insert(dishes);
   state.myChef={...chef,menu:dishes};
+  localStorage.setItem('zc_chef_id',chef.id);
   btn.disabled=false;btn.textContent='提交申请';
   showPage('reg-done');
 }
@@ -878,9 +887,19 @@ async function reviewChef(id, status){
 // 在地址栏输入 #admin 进入管理员登录
 if(location.hash==='#admin')showPage('admin-login');
 
+async function restoreChef(){
+  const id=localStorage.getItem('zc_chef_id');
+  if(!id)return;
+  const {data:chef}=await db.from('chefs').select('*').eq('id',id).single();
+  if(!chef)return;
+  const {data:menu}=await db.from('menu_items').select('*').eq('chef_id',id);
+  state.myChef={...chef,menu:menu||[]};
+}
+
 // 初始化
 loadChefs();
 loadOrders();
+restoreChef();
 addDish();
 
 // PWA Service Worker

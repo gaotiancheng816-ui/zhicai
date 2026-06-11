@@ -305,8 +305,12 @@ textarea{resize:none}
 </div>
 
 <div class="page" id="p-orders">
-  <div class="topbar" style="padding-bottom:16px">
-    <div class="topbar-row" style="margin:0"><div class="brand">我的<span>订单</span></div></div>
+  <div class="topbar" style="padding-bottom:12px">
+    <div class="topbar-row" style="margin-bottom:10px"><div class="brand">我的<span>订单</span></div></div>
+    <div style="display:flex;gap:8px">
+      <button class="admin-tab active" id="otab-sent" onclick="setOrderTab('sent')">我的预约</button>
+      <button class="admin-tab" id="otab-received" onclick="setOrderTab('received')">收到的预约</button>
+    </div>
   </div>
   <div class="content-pad" id="orders-list"></div>
 </div>
@@ -681,27 +685,58 @@ async function loadOrders(){
   state.orders=data||[];
 }
 
+let orderTab='sent';
+
+function setOrderTab(tab){
+  orderTab=tab;
+  ['sent','received'].forEach(t=>document.getElementById('otab-'+t).classList.toggle('active',t===tab));
+  if(tab==='sent') renderOrders();
+  else renderReceivedOrders();
+}
+
+function orderCardHTML(o, i, isSent){
+  const label=isSent?o.chef_name:o.customer_name;
+  const sublabel=isSent?'私厨':`${o.contact||''}`;
+  return `<div class="order-card">
+    <div class="order-head">
+      <div class="order-left">
+        <div class="avatar ${avC(i)}" style="width:44px;height:44px;font-size:18px">${ini(label||'厨')}</div>
+        <div><div class="order-cname">${label||'-'}</div><div class="order-cmeta">${isSent?o.created_at?.slice(0,10):sublabel}</div></div>
+      </div>
+      <span class="badge ${o.status==='pending'?'badge-pending':'badge-done'}">${o.status==='pending'?'待确认':'已完成'}</span>
+    </div>
+    <div class="order-items">
+      ${(o.items||[]).map(it=>`<div class="oi-row"><span>${it.name} × ${it.qty}</span><span>€${it.qty*it.price}</span></div>`).join('')}
+      <div class="o-total-row"><span>合计参考</span><span>€${o.total||0}</span></div>
+      <div class="order-time-row"><i class="ti ti-clock" style="font-size:13px"></i>送达时间：${o.delivery_time||'-'}</div>
+      ${!isSent&&o.contact?`<div class="order-time-row"><i class="ti ti-phone" style="font-size:13px"></i>联系方式：${o.contact}</div>`:''}
+    </div>
+  </div>`;
+}
+
 function renderOrders(){
   const el=document.getElementById('orders-list');
   if(!state.orders.length){
-    el.innerHTML='<div class="empty"><div class="empty-icon"><i class="ti ti-receipt-off"></i></div><h2>还没有订单</h2><p>浏览附近私厨，选好菜品提交预约。</p></div>';
+    el.innerHTML='<div class="empty"><div class="empty-icon"><i class="ti ti-receipt-off"></i></div><h2>还没有预约</h2><p>浏览附近私厨，选好菜品提交预约。</p></div>';
     return;
   }
-  el.innerHTML=state.orders.map((o,i)=>`
-    <div class="order-card">
-      <div class="order-head">
-        <div class="order-left">
-          <div class="avatar ${avC(i)}" style="width:44px;height:44px;font-size:18px">${ini(o.chef_name||'厨')}</div>
-          <div><div class="order-cname">${o.chef_name||'-'}</div><div class="order-cmeta">${o.created_at?o.created_at.slice(0,10):''}</div></div>
-        </div>
-        <span class="badge ${o.status==='pending'?'badge-pending':'badge-done'}">${o.status==='pending'?'待确认':'已完成'}</span>
-      </div>
-      <div class="order-items">
-        ${(o.items||[]).map(i=>`<div class="oi-row"><span>${i.name} × ${i.qty}</span><span>€${i.qty*i.price}</span></div>`).join('')}
-        <div class="o-total-row"><span>合计参考</span><span>€${o.total||0}</span></div>
-        <div class="order-time-row"><i class="ti ti-clock" style="font-size:13px"></i>送达时间：${o.delivery_time||'-'}</div>
-      </div>
-    </div>`).join('');
+  el.innerHTML=state.orders.map((o,i)=>orderCardHTML(o,i,true)).join('');
+}
+
+async function renderReceivedOrders(){
+  const el=document.getElementById('orders-list');
+  if(!state.myChef){
+    el.innerHTML='<div class="empty"><div class="empty-icon"><i class="ti ti-chef-hat"></i></div><h2>你还不是私厨</h2><p>入驻成为私厨后，这里会显示收到的预约。</p></div>';
+    return;
+  }
+  el.innerHTML='<div class="loading"><i class="ti ti-loader"></i>加载中…</div>';
+  const {data}=await db.from('orders').select('*').eq('chef_id',state.myChef.id).order('created_at',{ascending:false}).limit(50);
+  const orders=data||[];
+  if(!orders.length){
+    el.innerHTML='<div class="empty"><div class="empty-icon"><i class="ti ti-inbox"></i></div><h2>还没有收到预约</h2><p>上线后用户可以找到你并发起预约。</p></div>';
+    return;
+  }
+  el.innerHTML=orders.map((o,i)=>orderCardHTML(o,i,false)).join('');
 }
 
 function addDish(){

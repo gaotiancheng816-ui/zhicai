@@ -519,28 +519,27 @@ function goBack(page){
 async function loadChefs(){
   const el=document.getElementById('chef-list');
   el.innerHTML='<div class="loading"><i class="ti ti-loader"></i>加载中…</div>';
+  document.getElementById('user-city').textContent='附近';
   const {data:chefs,error}=await db.from('chefs').select('*').eq('status','approved').order('created_at');
   if(error||!chefs||!chefs.length){
     el.innerHTML='<div class="empty"><div class="empty-icon"><i class="ti ti-chef-hat"></i></div><h2>暂无私厨</h2><p>还没有私厨入驻，快来成为第一个！</p></div>';
     return;
   }
   const {data:allMenus}=await db.from('menu_items').select('*').in('chef_id',chefs.map(c=>c.id));
-  let userLat=null,userLng=null;
+  state.chefs=chefs.map((c,i)=>({...c,_idx:i,dist:null,menu:(allMenus||[]).filter(m=>m.chef_id===c.id)}));
+  renderChefList(state.chefs);
+  // 定位单独进行，完成后更新距离和城市名
   try{
-    const pos=await new Promise((res,rej)=>navigator.geolocation.getCurrentPosition(res,rej,{timeout:5000}));
-    userLat=pos.coords.latitude;userLng=pos.coords.longitude;
+    const pos=await new Promise((res,rej)=>navigator.geolocation.getCurrentPosition(res,rej,{timeout:8000}));
+    const userLat=pos.coords.latitude, userLng=pos.coords.longitude;
+    state.chefs=state.chefs.map(c=>({...c,dist:(c.lat&&c.lng)?+(haversine(userLat,userLng,c.lat,c.lng).toFixed(1)):null}));
+    renderChefList(state.chefs);
     try{
       const geo=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${userLat}&lon=${userLng}&format=json`).then(r=>r.json());
       const city=geo.address?.city||geo.address?.town||geo.address?.village||geo.address?.county||'';
-      if(city)document.getElementById('user-city').textContent=city;
-      else document.getElementById('user-city').textContent='附近';
-    }catch(e){document.getElementById('user-city').textContent='附近';}
-  }catch(e){document.getElementById('user-city').textContent='荷兰';}
-  state.chefs=chefs.map((c,i)=>{
-    const dist=(userLat&&c.lat&&c.lng)?+(haversine(userLat,userLng,c.lat,c.lng).toFixed(1)):null;
-    return{...c,_idx:i,dist,menu:(allMenus||[]).filter(m=>m.chef_id===c.id)};
-  });
-  renderChefList(state.chefs);
+      document.getElementById('user-city').textContent=city||'附近';
+    }catch(e){}
+  }catch(e){}
 }
 
 function avatarEl(c, size='56px', radius='var(--r-full)'){

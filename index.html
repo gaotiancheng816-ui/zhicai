@@ -525,7 +525,11 @@ function switchTab(tab){
     else if(localStorage.getItem('zc_chef_id')){
       showPage('kitchen-reg');
       document.getElementById('my-chef-info').innerHTML='<div class="loading" style="padding:32px"><i class="ti ti-loader"></i>加载中…</div>';
-      restoreChef().then(()=>{if(state.myChef){renderKitchen();}else{showPage('kitchen-empty');}});
+      document.getElementById('my-menu').innerHTML='';
+      (chefRestorePromise||restoreChef()).then(()=>{
+        if(state.myChef){renderKitchen();}
+        else{showPage('kitchen-empty');}
+      });
     }else{showPage('kitchen-empty');}
   }
 }
@@ -955,11 +959,13 @@ async function reviewChef(id, status){
 // 在地址栏输入 #admin 进入管理员登录
 if(location.hash==='#admin')showPage('admin-login');
 
+let chefRestorePromise=null;
+
 async function restoreChef(){
   const id=localStorage.getItem('zc_chef_id');
   if(!id)return;
-  const {data:chef}=await db.from('chefs').select('*').eq('id',id).single();
-  if(!chef)return;
+  const {data:chef,error}=await db.from('chefs').select('*').eq('id',id).single();
+  if(error||!chef){localStorage.removeItem('zc_chef_id');return;}
   const {data:menu}=await db.from('menu_items').select('*').eq('chef_id',id);
   state.myChef={...chef,menu:menu||[]};
 }
@@ -967,7 +973,7 @@ async function restoreChef(){
 // 初始化
 loadChefs();
 loadOrders();
-restoreChef();
+chefRestorePromise = restoreChef();
 addDish();
 
 // PWA Service Worker

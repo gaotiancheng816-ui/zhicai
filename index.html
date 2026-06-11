@@ -784,6 +784,9 @@ function renderKitchen(){
     :c.status==='rejected'
     ?`<span class="badge" style="background:#FEE2E2;color:#DC2626">✕ 审核未通过</span>`
     :`<span class="badge badge-review">⏳ 审核中</span>`;
+  const pendingNote=c.status==='pending'
+    ?`<div style="margin:0 16px 12px;padding:10px 12px;background:#FEF3C7;border-radius:var(--r);font-size:13px;color:#92400E;line-height:1.6"><i class="ti ti-clock"></i> 我们将在 <strong>24 小时内</strong>完成审核，审核通过后你的主页将自动上线。</div>`
+    :'';
   const statusNote=c.status==='rejected'
     ?`<div style="margin:0 16px 12px;padding:12px;background:#FEE2E2;border-radius:var(--r);font-size:13px;color:#DC2626;line-height:1.6">
         <div style="margin-bottom:10px"><i class="ti ti-info-circle"></i> 你的申请未通过审核，如有疑问请联系平台管理员。</div>
@@ -795,7 +798,7 @@ function renderKitchen(){
       ${c.avatar_url?`<img src="${c.avatar_url}" style="width:58px;height:58px;border-radius:var(--r-xl);object-fit:cover;flex-shrink:0">`:`<div class="kitchen-av av-d">${ini(c.name)}</div>`}
       <div><div class="kitchen-name">${c.name}</div><div class="kitchen-city">${c.city||''} · ${c.area||''}</div>${statusBadge}</div>
     </div>
-    ${statusNote}
+    ${statusNote}${pendingNote}
     <div class="kitchen-chips">
       <div class="info-chip"><div class="ic-label">联系方式</div><div class="ic-val">${c.contact||'-'}</div></div>
       <div class="info-chip"><div class="ic-label">配送</div><div class="ic-val">${c.delivery||'-'}</div></div>

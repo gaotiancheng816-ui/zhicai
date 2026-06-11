@@ -536,8 +536,9 @@ async function loadChefs(){
     renderChefList(state.chefs);
     try{
       const geo=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${userLat}&lon=${userLng}&format=json`).then(r=>r.json());
-      const city=geo.address?.city||geo.address?.town||geo.address?.village||geo.address?.county||'';
-      document.getElementById('user-city').textContent=city||'附近';
+      const a=geo.address||{};
+      const city=a.city||a.town||a.municipality||a.village||a.county||a.state||'';
+      document.getElementById('user-city').textContent=city||'荷兰';
     }catch(e){}
   }catch(e){}
 }

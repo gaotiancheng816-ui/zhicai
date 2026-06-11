@@ -370,7 +370,7 @@ textarea{resize:none}
     <div class="field"><label class="lbl">联系方式（微信 / 其他）<span class="req">*</span></label><input id="r-contact" type="text" placeholder="微信号或其他联系方式"></div>
     <div class="field"><label class="lbl">WhatsApp 号码</label><input id="r-whatsapp" type="text" placeholder="+31 6 1234 5678（用于接收订单通知）"></div>
     <div class="field" style="margin-bottom:22px"><label class="lbl">自我介绍 <span class="req">*</span></label><textarea id="r-bio" rows="4" placeholder="来自哪里、擅长什么菜…"></textarea></div>
-    <button class="btn-primary" onclick="showPage('reg-2')">下一步</button>
+    <button class="btn-primary" onclick="validateReg1()">下一步</button>
   </div>
 </div>
 
@@ -384,7 +384,7 @@ textarea{resize:none}
     <p style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:16px;background:var(--cream);padding:10px 12px;border-radius:var(--r);border:1px solid var(--border)">每道菜填名称、价格和提前准备时间，用户下单时会看到。</p>
     <div id="dish-list"></div>
     <button class="btn-dashed" onclick="addDish()"><i class="ti ti-plus" aria-hidden="true"></i> 添加菜品</button>
-    <button class="btn-primary" onclick="showPage('reg-3')">下一步</button>
+    <button class="btn-primary" onclick="validateReg2()">下一步</button>
   </div>
 </div>
 
@@ -783,6 +783,32 @@ async function submitReg(){
   localStorage.setItem('zc_chef_id',chef.id);
   btn.disabled=false;btn.textContent='提交申请';
   showPage('reg-done');
+}
+
+function validateReg1(){
+  const name=document.getElementById('r-dname').value.trim();
+  const city=document.getElementById('r-city').value;
+  const area=document.getElementById('r-area').value.trim();
+  const contact=document.getElementById('r-contact').value.trim();
+  const bio=document.getElementById('r-bio').value.trim();
+  if(!name){alert('请填写展示名称');return}
+  if(!city){alert('请选择所在城市');return}
+  if(!area){alert('请填写大致区域');return}
+  if(!regLatLng){alert('请在地图上点击选择你的位置');return}
+  if(!contact){alert('请填写联系方式');return}
+  if(!bio){alert('请填写自我介绍');return}
+  showPage('reg-2');
+}
+
+function validateReg2(){
+  const dishes=[];
+  for(let i=1;i<=dishCount;i++){
+    const el=document.getElementById('dish-'+i);if(!el)continue;
+    const n=document.getElementById('dn-'+i)?.value.trim();
+    if(n)dishes.push(n);
+  }
+  if(!dishes.length){alert('请至少添加一道菜品');return}
+  showPage('reg-3');
 }
 
 function reapply(){

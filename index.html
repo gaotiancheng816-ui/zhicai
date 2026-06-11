@@ -698,24 +698,55 @@ function setOrderTab(tab){
   else renderReceivedOrders();
 }
 
+const ORDER_STATUS={
+  pending:{label:'待确认',cls:'badge-pending'},
+  confirmed:{label:'已接单',cls:'badge-online'},
+  completed:{label:'已完成',cls:'badge-done'},
+  rejected:{label:'已拒绝',cls:'badge' +' style="background:#FEE2E2;color:#DC2626"'},
+};
+function statusBadge(s){
+  if(s==='pending') return `<span class="badge badge-pending">待确认</span>`;
+  if(s==='confirmed') return `<span class="badge badge-online">已接单</span>`;
+  if(s==='completed') return `<span class="badge" style="background:#D1FAE5;color:#065F46">已完成</span>`;
+  if(s==='rejected') return `<span class="badge" style="background:#FEE2E2;color:#DC2626">已拒绝</span>`;
+  return `<span class="badge badge-pending">${s}</span>`;
+}
+
 function orderCardHTML(o, i, isSent){
   const label=isSent?o.chef_name:o.customer_name;
-  const sublabel=isSent?'私厨':`${o.contact||''}`;
+  const chefBtns=!isSent?`
+    <div style="display:flex;gap:8px;margin-top:12px;border-top:1px solid var(--border);padding-top:12px">
+      ${o.status==='pending'?`
+        <button onclick="updateOrderStatus('${o.id}','confirmed')" style="flex:1;padding:9px;background:#065F46;color:#fff;border:none;border-radius:var(--r-full);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">✓ 确认接单</button>
+        <button onclick="updateOrderStatus('${o.id}','rejected')" style="flex:1;padding:9px;background:none;color:#DC2626;border:1.5px solid #FCA5A5;border-radius:var(--r-full);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">✕ 拒绝</button>
+      `:''}
+      ${o.status==='confirmed'?`
+        <button onclick="updateOrderStatus('${o.id}','completed')" style="flex:1;padding:9px;background:var(--orange);color:#fff;border:none;border-radius:var(--r-full);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">完成订单</button>
+      `:''}
+    </div>`:'';
   return `<div class="order-card">
     <div class="order-head">
       <div class="order-left">
         <div class="avatar ${avC(i)}" style="width:44px;height:44px;font-size:18px">${ini(label||'厨')}</div>
-        <div><div class="order-cname">${label||'-'}</div><div class="order-cmeta">${isSent?o.created_at?.slice(0,10):sublabel}</div></div>
+        <div><div class="order-cname">${label||'-'}</div><div class="order-cmeta">${isSent?(o.created_at?.slice(0,10)||''):(o.contact||'')}</div></div>
       </div>
-      <span class="badge ${o.status==='pending'?'badge-pending':'badge-done'}">${o.status==='pending'?'待确认':'已完成'}</span>
+      ${statusBadge(o.status)}
     </div>
     <div class="order-items">
       ${(o.items||[]).map(it=>`<div class="oi-row"><span>${it.name} × ${it.qty}</span><span>€${it.qty*it.price}</span></div>`).join('')}
       <div class="o-total-row"><span>合计参考</span><span>€${o.total||0}</span></div>
       <div class="order-time-row"><i class="ti ti-clock" style="font-size:13px"></i>送达时间：${o.delivery_time||'-'}</div>
-      ${!isSent&&o.contact?`<div class="order-time-row"><i class="ti ti-phone" style="font-size:13px"></i>联系方式：${o.contact}</div>`:''}
+      ${!isSent&&o.note?`<div class="order-time-row"><i class="ti ti-notes" style="font-size:13px"></i>${o.note}</div>`:''}
     </div>
+    ${chefBtns}
   </div>`;
+}
+
+async function updateOrderStatus(id, status){
+  const {error}=await db.from('orders').update({status}).eq('id',id);
+  if(error){alert('操作失败');return;}
+  renderReceivedOrders();
+  await loadOrders();
 }
 
 function renderOrders(){

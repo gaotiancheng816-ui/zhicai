@@ -771,12 +771,20 @@ async function submitReg(){
 
 function renderKitchen(){
   const c=state.myChef;
-  const isOnline=c.status==='approved';
+  const statusBadge=c.status==='approved'
+    ?`<span class="badge badge-online">✓ 已上线</span>`
+    :c.status==='rejected'
+    ?`<span class="badge" style="background:#FEE2E2;color:#DC2626">✕ 审核未通过</span>`
+    :`<span class="badge badge-review">⏳ 审核中</span>`;
+  const statusNote=c.status==='rejected'
+    ?`<div style="margin:0 16px 12px;padding:10px 12px;background:#FEE2E2;border-radius:var(--r);font-size:13px;color:#DC2626;line-height:1.5"><i class="ti ti-info-circle"></i> 你的申请未通过审核，如有疑问请联系平台管理员。</div>`
+    :'';
   document.getElementById('my-chef-info').innerHTML=`
     <div class="kitchen-top">
       ${c.avatar_url?`<img src="${c.avatar_url}" style="width:58px;height:58px;border-radius:var(--r-xl);object-fit:cover;flex-shrink:0">`:`<div class="kitchen-av av-d">${ini(c.name)}</div>`}
-      <div><div class="kitchen-name">${c.name}</div><div class="kitchen-city">${c.city||''} · ${c.area||''}</div><span class="badge ${isOnline?'badge-online':'badge-review'}">${isOnline?'已上线':'审核中'}</span></div>
+      <div><div class="kitchen-name">${c.name}</div><div class="kitchen-city">${c.city||''} · ${c.area||''}</div>${statusBadge}</div>
     </div>
+    ${statusNote}
     <div class="kitchen-chips">
       <div class="info-chip"><div class="ic-label">联系方式</div><div class="ic-val">${c.contact||'-'}</div></div>
       <div class="info-chip"><div class="ic-label">配送</div><div class="ic-val">${c.delivery||'-'}</div></div>

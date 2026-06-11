@@ -519,7 +519,7 @@ function goBack(page){
 async function loadChefs(){
   const el=document.getElementById('chef-list');
   el.innerHTML='<div class="loading"><i class="ti ti-loader"></i>加载中…</div>';
-  document.getElementById('user-city').textContent='附近';
+  document.getElementById('user-city').textContent='荷兰';
   const {data:chefs,error}=await db.from('chefs').select('*').eq('status','approved').order('created_at');
   if(error||!chefs||!chefs.length){
     el.innerHTML='<div class="empty"><div class="empty-icon"><i class="ti ti-chef-hat"></i></div><h2>暂无私厨</h2><p>还没有私厨入驻，快来成为第一个！</p></div>';

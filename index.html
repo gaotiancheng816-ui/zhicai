@@ -769,6 +769,14 @@ async function submitReg(){
   showPage('reg-done');
 }
 
+function reapply(){
+  state.myChef=null;
+  dishCount=0;
+  document.getElementById('dish-list').innerHTML='';
+  showPage('reg-1');
+  addDish();
+}
+
 function renderKitchen(){
   const c=state.myChef;
   const statusBadge=c.status==='approved'
@@ -777,7 +785,10 @@ function renderKitchen(){
     ?`<span class="badge" style="background:#FEE2E2;color:#DC2626">✕ 审核未通过</span>`
     :`<span class="badge badge-review">⏳ 审核中</span>`;
   const statusNote=c.status==='rejected'
-    ?`<div style="margin:0 16px 12px;padding:10px 12px;background:#FEE2E2;border-radius:var(--r);font-size:13px;color:#DC2626;line-height:1.5"><i class="ti ti-info-circle"></i> 你的申请未通过审核，如有疑问请联系平台管理员。</div>`
+    ?`<div style="margin:0 16px 12px;padding:12px;background:#FEE2E2;border-radius:var(--r);font-size:13px;color:#DC2626;line-height:1.6">
+        <div style="margin-bottom:10px"><i class="ti ti-info-circle"></i> 你的申请未通过审核，如有疑问请联系平台管理员。</div>
+        <button onclick="reapply()" style="background:#DC2626;color:#fff;border:none;border-radius:var(--r-full);padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">重新申请</button>
+      </div>`
     :'';
   document.getElementById('my-chef-info').innerHTML=`
     <div class="kitchen-top">

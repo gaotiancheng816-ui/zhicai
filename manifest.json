@@ -1,0 +1,14 @@
+{
+  "name": "自厨 · 荷兰私家中餐",
+  "short_name": "自厨",
+  "description": "荷兰点对点私厨预约平台",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FDFBF7",
+  "theme_color": "#FF6B35",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "/icon-192.svg", "sizes": "192x192", "type": "image/svg+xml", "purpose": "any maskable" },
+    { "src": "/icon-512.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
